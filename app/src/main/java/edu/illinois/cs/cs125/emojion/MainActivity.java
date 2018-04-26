@@ -24,6 +24,8 @@ import com.microsoft.projectoxford.face.contract.*;
 
 public class MainActivity extends AppCompatActivity {
 
+    private int a;
+
     private FaceServiceClient faceServiceClient = new FaceServiceRestClient("https://westcentralus.api.cognitive.microsoft.com/face/v1.0",
             "<b6633cf969cc42da9cc22677da20861b>");
 
