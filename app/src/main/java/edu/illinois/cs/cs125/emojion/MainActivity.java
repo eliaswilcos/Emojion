@@ -26,8 +26,8 @@ public class MainActivity extends AppCompatActivity {
 
     private int a;
 
-    private FaceServiceClient faceServiceClient = new FaceServiceRestClient("https://westcentralus.api.cognitive.microsoft.com/face/v1.0",
-            "<b6633cf969cc42da9cc22677da20861b>");
+    private FaceServiceClient faceServiceClient = new FaceServiceRestClient( "https://westcentralus.api.cognitive.microsoft.com/face/v1.0\n" +
+            "\n", "92c9d0e5e2db49469e15a2180609eccf");
 
     private final int PICK_IMAGE = 1;
     private ProgressDialog detectionProgressDialog;
@@ -58,10 +58,37 @@ public class MainActivity extends AppCompatActivity {
                 Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), uri);
                 ImageView imageView = (ImageView) findViewById(R.id.imageView1);
                 imageView.setImageBitmap(bitmap);
+
+                // This is the new addition.
+                detectAndFrame(bitmap);
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
+    }
+
+    private static Bitmap drawFaceRectanglesOnBitmap(Bitmap originalBitmap, Face[] faces) {
+        Bitmap bitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true);
+        Canvas canvas = new Canvas(bitmap);
+        Paint paint = new Paint();
+        paint.setAntiAlias(true);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(Color.RED);
+        int stokeWidth = 2;
+        paint.setStrokeWidth(stokeWidth);
+        if (faces != null) {
+            for (Face face : faces) {
+                FaceRectangle faceRectangle = face.faceRectangle;
+                canvas.drawRect(
+                        faceRectangle.left,
+                        faceRectangle.top,
+                        faceRectangle.left + faceRectangle.width,
+                        faceRectangle.top + faceRectangle.height,
+                        paint);
+            }
+        }
+        return bitmap;
     }
 
     // Detect faces by uploading face images
@@ -79,37 +106,65 @@ public class MainActivity extends AppCompatActivity {
                     protected Face[] doInBackground(InputStream... params) {
                         try {
                             publishProgress("Detecting...");
+                            TextView text = findViewById(R.id.textView);
+                            text.setText("running");
                             Face[] result = faceServiceClient.detect(
                                     params[0],
                                     true,         // returnFaceId
                                     false,        // returnFaceLandmarks
                                     null           // returnFaceAttributes: a string like "age, gender"
                             );
+                            text.setText("detected");
                             if (result == null)
                             {
                                 publishProgress("Detection Finished. Nothing detected");
+                                text.setText("failed");
                                 return null;
                             }
                             publishProgress(
                                     String.format("Detection Finished. %d face(s) detected",
                                             result.length));
+                            text.setText("succeed");
                             return result;
+                        } catch (com.microsoft.projectoxford.face.rest.ClientException e) {
+                            TextView text = findViewById(R.id.textView);
+                            text.setText("client");
+                            publishProgress("Detection failed");
+                            return null;
+                        } catch (java.io.IOException e) {
+                            TextView text = findViewById(R.id.textView);
+                            text.setText("io");
+                            publishProgress("Detection failed");
+                            return null;
+                        } catch (NullPointerException e) {
+                            TextView text = findViewById(R.id.textView);
+                            text.setText("null");
+                            publishProgress("Detection failed");
+                            return null;
                         } catch (Exception e) {
+                            TextView text = findViewById(R.id.textView);
+                            System.out.println(e);
                             publishProgress("Detection failed");
                             return null;
                         }
                     }
                     @Override
                     protected void onPreExecute() {
-                        //TODO: show progress dialog
+                        detectionProgressDialog.show();
                     }
+
                     @Override
                     protected void onProgressUpdate(String... progress) {
-                        //TODO: update progress
+                        detectionProgressDialog.setMessage(progress[0]);
                     }
+
                     @Override
                     protected void onPostExecute(Face[] result) {
-                        //TODO: update face frames
+                        detectionProgressDialog.dismiss();
+                        if (result == null) return;
+                        ImageView imageView = (ImageView) findViewById(R.id.imageView1);
+                        imageView.setImageBitmap(drawFaceRectanglesOnBitmap(imageBitmap, result));
+                        imageBitmap.recycle();
                     }
                 };
         detectTask.execute(inputStream);
