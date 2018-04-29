@@ -91,6 +91,29 @@ public class MainActivity extends AppCompatActivity {
         return bitmap;
     }
 
+    private static void checkEmotion(Bitmap originalBitmap, Face[] faces) {
+        Bitmap bitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true);
+        Canvas canvas = new Canvas(bitmap);
+        Paint paint = new Paint();
+        paint.setAntiAlias(true);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setColor(Color.RED);
+        int stokeWidth = 2;
+        paint.setStrokeWidth(stokeWidth);
+        if (faces != null) {
+            for (Face face : faces) {
+                FaceRectangle faceRectangle = face.faceRectangle;
+                canvas.drawRect(
+                        faceRectangle.left,
+                        faceRectangle.top,
+                        faceRectangle.left + faceRectangle.width,
+                        faceRectangle.top + faceRectangle.height,
+                        paint);
+            }
+        }
+        return bitmap;
+    }
+
     // Detect faces by uploading face images
     // Frame faces after detection
 
@@ -105,49 +128,25 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     protected Face[] doInBackground(InputStream... params) {
                         try {
+                            FaceServiceClient.FaceAttributeType[] attributes = new FaceServiceClient.FaceAttributeType[1];
                             publishProgress("Detecting...");
-                            TextView text = findViewById(R.id.textView);
-                            text.setText("running");
-                            Face[] result = faceServiceClient.detect(
-                                    params[0],
-                                    true,         // returnFaceId
-                                    false,        // returnFaceLandmarks
-                                    null           // returnFaceAttributes: a string like "age, gender"
-                            );
-                            text.setText("detected");
+                            Face[] result = faceServiceClient.detect(params[0], true, false,
+                                    new FaceServiceClient.FaceAttributeType[] {FaceServiceClient.FaceAttributeType.Emotion});
                             if (result == null)
                             {
                                 publishProgress("Detection Finished. Nothing detected");
-                                text.setText("failed");
                                 return null;
                             }
                             publishProgress(
                                     String.format("Detection Finished. %d face(s) detected",
                                             result.length));
-                            text.setText("succeed");
                             return result;
-                        } catch (com.microsoft.projectoxford.face.rest.ClientException e) {
-                            TextView text = findViewById(R.id.textView);
-                            text.setText("client");
-                            publishProgress("Detection failed");
-                            return null;
-                        } catch (java.io.IOException e) {
-                            TextView text = findViewById(R.id.textView);
-                            text.setText("io");
-                            publishProgress("Detection failed");
-                            return null;
-                        } catch (NullPointerException e) {
-                            TextView text = findViewById(R.id.textView);
-                            text.setText("null");
-                            publishProgress("Detection failed");
-                            return null;
                         } catch (Exception e) {
-                            TextView text = findViewById(R.id.textView);
-                            System.out.println(e);
                             publishProgress("Detection failed");
                             return null;
                         }
                     }
+
                     @Override
                     protected void onPreExecute() {
                         detectionProgressDialog.show();
@@ -161,7 +160,11 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     protected void onPostExecute(Face[] result) {
                         detectionProgressDialog.dismiss();
-                        if (result == null) return;
+                        if (result == null) {
+                            TextView text = findViewById(R.id.textView);
+                            text.setText("result is null");
+                            return;
+                        }
                         ImageView imageView = (ImageView) findViewById(R.id.imageView1);
                         imageView.setImageBitmap(drawFaceRectanglesOnBitmap(imageBitmap, result));
                         imageBitmap.recycle();
