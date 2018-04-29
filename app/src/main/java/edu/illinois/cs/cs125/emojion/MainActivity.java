@@ -19,6 +19,8 @@ import android.graphics.*;
 import android.widget.*;
 import android.provider.*;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.microsoft.projectoxford.face.*;
 import com.microsoft.projectoxford.face.contract.*;
 
@@ -91,27 +93,14 @@ public class MainActivity extends AppCompatActivity {
         return bitmap;
     }
 
-    private static void checkEmotion(Bitmap originalBitmap, Face[] faces) {
-        Bitmap bitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true);
-        Canvas canvas = new Canvas(bitmap);
-        Paint paint = new Paint();
-        paint.setAntiAlias(true);
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setColor(Color.RED);
-        int stokeWidth = 2;
-        paint.setStrokeWidth(stokeWidth);
-        if (faces != null) {
-            for (Face face : faces) {
-                FaceRectangle faceRectangle = face.faceRectangle;
-                canvas.drawRect(
-                        faceRectangle.left,
-                        faceRectangle.top,
-                        faceRectangle.left + faceRectangle.width,
-                        faceRectangle.top + faceRectangle.height,
-                        paint);
-            }
+    private static void checkEmotion(Face[] faces) {
+        String face = faces[0].toString();
+        JsonParser parser = new JsonParser();
+        JsonObject result = parser.parse(face).getAsJsonObject();
+        if (result == null) {
+            return;
         }
-        return bitmap;
+        return;
     }
 
     // Detect faces by uploading face images
@@ -128,7 +117,6 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     protected Face[] doInBackground(InputStream... params) {
                         try {
-                            FaceServiceClient.FaceAttributeType[] attributes = new FaceServiceClient.FaceAttributeType[1];
                             publishProgress("Detecting...");
                             Face[] result = faceServiceClient.detect(params[0], true, false,
                                     new FaceServiceClient.FaceAttributeType[] {FaceServiceClient.FaceAttributeType.Emotion});
@@ -166,7 +154,7 @@ public class MainActivity extends AppCompatActivity {
                             return;
                         }
                         ImageView imageView = (ImageView) findViewById(R.id.imageView1);
-                        imageView.setImageBitmap(drawFaceRectanglesOnBitmap(imageBitmap, result));
+                        checkEmotion(result);
                         imageBitmap.recycle();
                     }
                 };
