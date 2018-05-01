@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.emojion;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -66,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
                 imageView.setImageBitmap(bitmap);
 
                 // This is the new addition.
-                detectAndFrame(bitmap);
+                detectAndEmotion(bitmap);
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -196,6 +197,52 @@ public class MainActivity extends AppCompatActivity {
 
     // Detect faces by uploading face images
     // Frame faces after detection
+
+    private void detectAndEmotion(final Bitmap imageBitmap) {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        imageBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
+        ByteArrayInputStream inputStream =
+                new ByteArrayInputStream(outputStream.toByteArray());
+        @SuppressLint("StaticFieldLeak") AsyncTask<InputStream, String, Face[]> detectTask =
+                new AsyncTask<InputStream, String, Face[]>() {
+                    @Override
+                    protected Face[] doInBackground(InputStream... params) {
+                        // Get an instance of face service client to detect faces in image.
+                        try {
+                            publishProgress("Detecting...");
+
+                            // Start detection.
+                            return faceServiceClient.detect(
+                                    params[0],  /* Input stream of image to detect */
+                                    true,       /* Whether to return face ID */
+                                    true,       /* Whether to return face landmarks */
+                                        /* Which face attributes to analyze, currently we support:
+                                           age,gender,headPose,smile,facialHair */
+                                    new FaceServiceClient.FaceAttributeType[]{
+                                            FaceServiceClient.FaceAttributeType.Emotion
+                                    });
+                        } catch (Exception e) {
+                            publishProgress(e.getMessage());
+                            return null;
+                        }
+                    }
+                    @Override
+                    protected void onPostExecute(Face[] result) {
+                        detectionProgressDialog.dismiss();
+                        if (result == null) {
+                            TextView text = findViewById(R.id.textView);
+                            text.setText("result is null");
+                            return;
+                        }
+                        TextView text = findViewById(R.id.textView);
+                        text.setText("result is not null");
+                        ImageView imageView = (ImageView) findViewById(R.id.imageView1);
+                        checkEmotion(result);
+                        imageBitmap.recycle();
+                    }
+                };
+        detectTask.execute(inputStream);
+    }
 
     private void detectAndFrame(final Bitmap imageBitmap)
     {
